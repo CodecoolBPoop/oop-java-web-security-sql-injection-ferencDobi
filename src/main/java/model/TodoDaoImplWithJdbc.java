@@ -10,14 +10,21 @@ import java.util.List;
 public class TodoDaoImplWithJdbc implements TodoDao {
 
     private static final String DATABASE = "jdbc:postgresql://localhost:5432/todolist";
-    private static final String DB_USER = "postgres";
-    private static final String DB_PASSWORD = "postgres";
+    private static final String DB_USER = System.getenv("DB_USER");
+    private static final String DB_PASSWORD = System.getenv("DB_PASSWORD");
 
     @Override
     public void add(Todo todo) {
-        String query = "INSERT INTO todos (title, id, status) " +
-                "VALUES ('" + todo.title + "', '" + todo.id + "', '" + todo.status + "');";
-        executeQuery(query);
+        try (Connection connection = getConnection()) {
+            PreparedStatement statement = connection.prepareStatement(
+                    "INSERT INTO todos (title, id, status) VALUES (?, ?, ?);");
+            statement.setString(1, todo.title);
+            statement.setString(2, todo.id);
+            statement.setObject(3, todo.status, Types.VARCHAR);
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -26,9 +33,8 @@ public class TodoDaoImplWithJdbc implements TodoDao {
         String query = "SELECT * FROM todos WHERE id ='" + id + "';";
 
         try (Connection connection = getConnection();
-             Statement statement =connection.createStatement();
-             ResultSet resultSet = statement.executeQuery(query);
-        ){
+             Statement statement = connection.createStatement();
+             ResultSet resultSet = statement.executeQuery(query)) {
             if (resultSet.next()){
                 Todo result = new Todo(resultSet.getString("title"),
                         resultSet.getString("id"),
